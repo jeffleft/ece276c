@@ -135,4 +135,4 @@ def visdom_plot(viz, win, folder, game, name, num_steps, bin_size=100, smooth=1)
 if __name__ == "__main__":
     from visdom import Visdom
     viz = Visdom()
-    visdom_plot(viz, None, '../logs', 'Pong', 'acktr-gae', num_steps = 3500000, bin_size=100, smooth=1)
+    visdom_plot(viz, None, 'results/ppo/log_ppo_w', 'Pong', 'ppo-gae', num_steps = 3000000, bin_size=100, smooth=1)
