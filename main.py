@@ -23,7 +23,7 @@ import algo
 
 args = get_args()
 
-assert args.algo in ['a2c', 'ppo', 'acktr', 'ppo_shared', 'acktr_shared']
+assert args.algo in ['a2c', 'ppo', 'acktr', 'ppo_shared', 'acktr_shared', 'ppo_unshared', 'acktr_unshared']
 if args.recurrent_policy:
     assert args.algo in ['a2c', 'ppo'], \
         'Recurrent policy is not implemented for ACKTR'
@@ -88,7 +88,7 @@ def main():
                          args.value_loss_coef, args.entropy_coef, lr=args.lr,
                                eps=args.eps,
                                max_grad_norm=args.max_grad_norm)
-    elif args.algo == 'ppo_shared':
+    elif args.algo == 'ppo_shared' or args.algo == 'ppo_unshared':
         agent = algo.PPO(actor_critic, args.clip_param, args.ppo_epoch, args.num_mini_batch,
                          args.value_loss_coef, args.entropy_coef, lr=args.lr,
                                 eps=args.eps,
@@ -96,7 +96,7 @@ def main():
     elif args.algo == 'acktr':
         agent = algo.A2C_ACKTR(actor_critic, args.value_loss_coef,
                                args.entropy_coef, acktr=True)
-    elif args.algo == 'acktr_shared':
+    elif args.algo == 'acktr_shared' or args.algo == 'acktr_unshared':
         agent = algo.A2C_ACKTR(actor_critic, args.value_loss_coef,
                                args.entropy_coef, acktr=True)
 

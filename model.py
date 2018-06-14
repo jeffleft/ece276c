@@ -18,10 +18,13 @@ class Policy(nn.Module):
         super(Policy, self).__init__()
 
         if algo == 'ppo_shared' or algo == 'acktr_shared':
-            # TODO: add "unshared" CNNModule
             self.shared = True
         else:
             self.shared = False
+        if algo == 'ppo_unshared' or algo == 'acktr_unshared':
+            self.unshared = True
+        else:
+            self.unshared = False
 
         if action_space.__class__.__name__ == "Discrete":
             num_outputs = action_space.n
@@ -35,6 +38,10 @@ class Policy(nn.Module):
                 assert not recurrent_policy, \
                     "Recurrent policy is not implemented for the shared fn approximator"
                 self.base = CNNBaseShared(obs_shape[0], recurrent_policy, num_outputs)
+            elif self.unshared:
+                assert not recurrent_policy, \
+                    "Recurrent policy is not implemented for the unshared fn approximator"
+                self.base = CNNBaseUnshare(obs_shape[0], recurrent_policy, num_outputs)
             else:
                 self.base = CNNBase(obs_shape[0], recurrent_policy)
         elif len(obs_shape) == 1:
@@ -42,12 +49,15 @@ class Policy(nn.Module):
                 "Recurrent policy is not implemented for the MLP controller"
             if self.shared:
                 self.base = MLPBaseShared(obs_shape[0], num_outputs)
+            elif self.unshared:
+                # redundant
+                raise NotImplementedError
             else:
                 self.base = MLPBase(obs_shape[0])
         else:
             raise NotImplementedError
 
-        if self.shared:
+        if self.shared or self.unshared:
             if action_space.__class__.__name__ == "Discrete":
                 self.dist = CategoricalNoFC()
             elif action_space.__class__.__name__ == "Box":
@@ -208,6 +218,64 @@ class CNNBaseShared(nn.Module):
         x = self.main(inputs / 255.0)
 
         return x[:,0].view(-1,1), x[:,1:], states
+
+class CNNBaseUnshare(nn.Module):
+    def __init__(self, num_inputs, use_gru, num_actions):
+        super(CNNBaseUnshare, self).__init__()
+
+        init_ = lambda m: init(m,
+                      nn.init.orthogonal_,
+                      lambda x: nn.init.constant_(x, 0),
+                      nn.init.calculate_gain('relu'))
+
+        init2_ = lambda m: init(m,
+          nn.init.orthogonal_,
+          lambda x: nn.init.constant_(x, 0))
+
+        self.actor = nn.Sequential(
+            init_(nn.Conv2d(num_inputs, 32, 8, stride=4)),
+            nn.ReLU(),
+            init_(nn.Conv2d(32, 64, 4, stride=2)),
+            nn.ReLU(),
+            init_(nn.Conv2d(64, 32, 3, stride=1)),
+            nn.ReLU(),
+            Flatten(),
+            init_(nn.Linear(32 * 7 * 7, 512)),
+            nn.ReLU(),
+            init2_(nn.Linear(512, num_actions))
+        )
+
+        self.critic = nn.Sequential(
+            init_(nn.Conv2d(num_inputs, 32, 8, stride=4)),
+            nn.ReLU(),
+            init_(nn.Conv2d(32, 64, 4, stride=2)),
+            nn.ReLU(),
+            init_(nn.Conv2d(64, 32, 3, stride=1)),
+            nn.ReLU(),
+            Flatten(),
+            init_(nn.Linear(32 * 7 * 7, 512)),
+            nn.ReLU(),
+            init2_(nn.Linear(512, 1))
+        )
+
+        if use_gru:
+            raise NotImplementedError
+
+        self.train()
+
+    @property
+    def state_size(self):
+            return 1
+
+    @property
+    def output_size(self):
+        return num_actions #doesn't matter actually
+
+    def forward(self, inputs, states, masks):
+        q_vals = self.actor(inputs / 255.0)
+        value  = self.critic(inputs / 255.0)
+        pdb.set_trace()
+        return value, q_vals, states
 
 
 class MLPBase(nn.Module):
