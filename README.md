@@ -1,4 +1,9 @@
-# Code largely based off https://github.com/ikostrikov/pytorch-a2c-ppo-acktr
+# For ECE276C final project
+Code largely based off https://github.com/ikostrikov/pytorch-a2c-ppo-acktr
+Shared function approximators implemented, run with --algo ppo_shared or acktr_shared
+Fully separated CNN Model implemented for comparison, run with --algo ppo_unshared or acktr_unshared
+
+README from original repo below:
 
 ## Update 10/06/2017: added enjoy.py and a link to pretrained models!
 ## Update 09/27/2017: now supports both Atari and MuJoCo/Roboschool!
