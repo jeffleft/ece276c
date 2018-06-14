@@ -11,16 +11,8 @@ class Flatten(nn.Module):
 
 
 class Policy(nn.Module):
-    def __init__(self, obs_shape, action_space, recurrent_policy):
+    def __init__(self, obs_shape, action_space, recurrent_policy, algo):
         super(Policy, self).__init__()
-        if len(obs_shape) == 3:
-            self.base = CNNBase(obs_shape[0], recurrent_policy)
-        elif len(obs_shape) == 1:
-            assert not recurrent_policy, \
-                "Recurrent policy is not implemented for the MLP controller"
-            self.base = MLPBase(obs_shape[0])
-        else:
-            raise NotImplementedError
 
         if action_space.__class__.__name__ == "Discrete":
             num_outputs = action_space.n
@@ -28,6 +20,18 @@ class Policy(nn.Module):
         elif action_space.__class__.__name__ == "Box":
             num_outputs = action_space.shape[0]
             self.dist = DiagGaussian(self.base.output_size, num_outputs)
+        else:
+            raise NotImplementedError
+
+        if len(obs_shape) == 3:
+            self.base = CNNBase(obs_shape[0], recurrent_policy)
+        elif len(obs_shape) == 1:
+            assert not recurrent_policy, \
+                "Recurrent policy is not implemented for the MLP controller"
+            if algo = 'ppo_shared':
+                self.base = MLPBaseShared(obs_shape[0], num_outputs)
+            else:
+                self.base = MLPBase(obs_shape[0])
         else:
             raise NotImplementedError
 
@@ -168,3 +172,34 @@ class MLPBase(nn.Module):
         hidden_actor = self.actor(inputs)
 
         return self.critic_linear(hidden_critic), hidden_actor, states
+
+class MLPBaseShared(nn.Module):
+    def __init__(self, num_inputs, num_actions):
+        super(MLPBase, self).__init__()
+
+        init_ = lambda m: init(m,
+              init_normc_,
+              lambda x: nn.init.constant_(x, 0))
+
+        self.shared = nn.Sequential(
+            init_(nn.Linear(num_inputs, 64)),
+            nn.Tanh(),
+            init_(nn.Linear(64, 64)),
+            nn.Tanh(),
+            init_(nn.Linear(64, 1+num_actions))
+        )
+
+        self.train()
+
+    @property
+    def state_size(self):
+        return 1
+
+    @property
+    def output_size(self):
+        return num_actions
+
+    def forward(self, inputs, states, masks):
+        outputs = self.shared(inputs)
+
+        return outputs[0], outputs[1:], states

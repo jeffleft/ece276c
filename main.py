@@ -23,7 +23,7 @@ import algo
 
 args = get_args()
 
-assert args.algo in ['a2c', 'ppo', 'acktr']
+assert args.algo in ['a2c', 'ppo', 'acktr', 'ppo_shared']
 if args.recurrent_policy:
     assert args.algo in ['a2c', 'ppo'], \
         'Recurrent policy is not implemented for ACKTR'
@@ -68,7 +68,7 @@ def main():
     obs_shape = envs.observation_space.shape
     obs_shape = (obs_shape[0] * args.num_stack, *obs_shape[1:])
 
-    actor_critic = Policy(obs_shape, envs.action_space, args.recurrent_policy)
+    actor_critic = Policy(obs_shape, envs.action_space, args.recurrent_policy, args.algo)
 
     if envs.action_space.__class__.__name__ == "Discrete":
         action_shape = 1
