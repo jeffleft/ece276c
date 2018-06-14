@@ -274,7 +274,7 @@ class CNNBaseUnshare(nn.Module):
     def forward(self, inputs, states, masks):
         q_vals = self.actor(inputs / 255.0)
         value  = self.critic(inputs / 255.0)
-        pdb.set_trace()
+
         return value, q_vals, states
 
 
