@@ -1,0 +1,2 @@
+# Pong, ACKTR, no-gae, not shared
+python main.py --env-name "PongNoFrameskip-v4" --algo acktr --num-processes 32 --num-steps 20 --log-dir logs
