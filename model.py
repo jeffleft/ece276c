@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from distributions import Categorical, DiagGaussian
 from utils import init, init_normc_
+import numpy as np
 
 
 class Flatten(nn.Module):
@@ -14,6 +15,11 @@ class Policy(nn.Module):
     def __init__(self, obs_shape, action_space, recurrent_policy, algo):
         super(Policy, self).__init__()
 
+        if algo == 'ppo_shared' or algo == 'acktr_shared':
+            self.shared = True
+        else:
+            self.shared = False
+
         if action_space.__class__.__name__ == "Discrete":
             num_outputs = action_space.n
         elif action_space.__class__.__name__ == "Box":
@@ -22,25 +28,33 @@ class Policy(nn.Module):
             raise NotImplementedError
 
         if len(obs_shape) == 3:
-            self.base = CNNBase(obs_shape[0], recurrent_policy)
+            if self.shared:
+                assert not recurrent_policy, \
+                    "Recurrent policy is not implemented for the shared fn approximator"
+                self.base = CNNBaseShared(obs_shape[0], recurrent_policy, num_outputs)
+            else:
+                self.base = CNNBase(obs_shape[0], recurrent_policy)
         elif len(obs_shape) == 1:
             assert not recurrent_policy, \
                 "Recurrent policy is not implemented for the MLP controller"
-            if algo == 'ppo_shared' or algo == 'acktr_shared':
+            if self.shared:
                 self.base = MLPBaseShared(obs_shape[0], num_outputs)
             else:
                 self.base = MLPBase(obs_shape[0])
         else:
             raise NotImplementedError
 
-        if action_space.__class__.__name__ == "Discrete":
-            num_outputs = action_space.n
-            self.dist = Categorical(self.base.output_size, num_outputs)
-        elif action_space.__class__.__name__ == "Box":
-            num_outputs = action_space.shape[0]
-            self.dist = DiagGaussian(self.base.output_size, num_outputs)
+        if self.shared:
+            self.dist = None # we don't need to sample for the shared nn
         else:
-            raise NotImplementedError
+            if action_space.__class__.__name__ == "Discrete":
+                num_outputs = action_space.n
+                self.dist = Categorical(self.base.output_size, num_outputs)
+            elif action_space.__class__.__name__ == "Box":
+                num_outputs = action_space.shape[0]
+                self.dist = DiagGaussian(self.base.output_size, num_outputs)
+            else:
+                raise NotImplementedError
 
         self.state_size = self.base.state_size
 
@@ -48,16 +62,28 @@ class Policy(nn.Module):
         raise NotImplementedError
 
     def act(self, inputs, states, masks, deterministic=False):
-        value, actor_features, states = self.base(inputs, states, masks)
-        dist = self.dist(actor_features)
+        #TODO: Change for shared model
+        #       run the unmodifed model with pdb and find dim. of action etc.
+        if self.shared:
+            value, q_vals, states = self.base(inputs, states, masks)
+            if deterministic:
+                action = np.argmax(q_vals)
+            else:
+                action = np.argmax(q_vals) # i don't fucking know, should there be a chance of randomness?
+            action_log_probs = np.log(np.log(q_vals))
+            dist_entropy = 0.05 #i don't fucking know?
 
-        if deterministic:
-            action = dist.mode()
         else:
-            action = dist.sample()
+            value, actor_features, states = self.base(inputs, states, masks)
+            dist = self.dist(actor_features)
 
-        action_log_probs = dist.log_probs(action)
-        dist_entropy = dist.entropy().mean()
+            if deterministic:
+                action = dist.mode()
+            else:
+                action = dist.sample()
+
+            action_log_probs = dist.log_probs(action)
+            dist_entropy = dist.entropy().mean()
 
         return value, action, action_log_probs, states
 
@@ -66,11 +92,17 @@ class Policy(nn.Module):
         return value
 
     def evaluate_actions(self, inputs, states, masks, action):
-        value, actor_features, states = self.base(inputs, states, masks)
-        dist = self.dist(actor_features)
+        #TODO: Change for shared model
+        if self.shared:
+            value, q_vals, states = self.base(inputs, states, masks)
+            action_log_probs = np.log(q_vals)
+            dist_entropy = 0.05 # what the fuck is this anyway??
+        else:
+            value, actor_features, states = self.base(inputs, states, masks)
+            dist = self.dist(actor_features)
 
-        action_log_probs = dist.log_probs(action)
-        dist_entropy = dist.entropy().mean()
+            action_log_probs = dist.log_probs(action)
+            dist_entropy = dist.entropy().mean()
 
         return value, action_log_probs, dist_entropy, states
 
@@ -140,6 +172,51 @@ class CNNBase(nn.Module):
         return self.critic_linear(x), x, states
 
 
+class CNNBaseShared(nn.Module):
+    def __init__(self, num_inputs, use_gru, num_actions):
+        super(CNNBase, self).__init__()
+
+        init_ = lambda m: init(m,
+                      nn.init.orthogonal_,
+                      lambda x: nn.init.constant_(x, 0),
+                      nn.init.calculate_gain('relu'))
+
+        init2_ = lambda m: init(m,
+          nn.init.orthogonal_,
+          lambda x: nn.init.constant_(x, 0))
+
+        self.main = nn.Sequential(
+            init_(nn.Conv2d(num_inputs, 32, 8, stride=4)),
+            nn.ReLU(),
+            init_(nn.Conv2d(32, 64, 4, stride=2)),
+            nn.ReLU(),
+            init_(nn.Conv2d(64, 32, 3, stride=1)),
+            nn.ReLU(),
+            Flatten(),
+            init_(nn.Linear(32 * 7 * 7, 512)),
+            nn.ReLU(),
+            init2_(nn.Linear(512, 1+num_actions))
+        )
+
+        if use_gru:
+            raise NotImplementedError
+
+        self.train()
+
+    @property
+    def state_size(self):
+            return 1
+
+    @property
+    def output_size(self):
+        return num_actions #doesn't matter actually
+
+    def forward(self, inputs, states, masks):
+        x = self.main(inputs / 255.0)
+
+        return x[0], x[1:], states
+
+
 class MLPBase(nn.Module):
     def __init__(self, num_inputs):
         super(MLPBase, self).__init__()
@@ -204,7 +281,7 @@ class MLPBaseShared(nn.Module):
 
     @property
     def output_size(self):
-        return num_actions
+        return num_actions #doesn't matter actually
 
     def forward(self, inputs, states, masks):
         outputs = self.shared(inputs)
