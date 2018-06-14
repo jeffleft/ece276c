@@ -88,6 +88,11 @@ def main():
                          args.value_loss_coef, args.entropy_coef, lr=args.lr,
                                eps=args.eps,
                                max_grad_norm=args.max_grad_norm)
+    elif args.algo == 'ppo_shared':
+        agent = algo.PPO(actor_critic, args.clip_param, args.ppo_epoch, args.num_mini_batch,
+                         args.value_loss_coef, args.entropy_coef, lr=args.lr,
+                                eps=args.eps,
+                                max_grad_norm=args.max_grad_norm)
     elif args.algo == 'acktr':
         agent = algo.A2C_ACKTR(actor_critic, args.value_loss_coef,
                                args.entropy_coef, acktr=True)
