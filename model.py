@@ -16,10 +16,8 @@ class Policy(nn.Module):
 
         if action_space.__class__.__name__ == "Discrete":
             num_outputs = action_space.n
-            self.dist = Categorical(self.base.output_size, num_outputs)
         elif action_space.__class__.__name__ == "Box":
             num_outputs = action_space.shape[0]
-            self.dist = DiagGaussian(self.base.output_size, num_outputs)
         else:
             raise NotImplementedError
 
@@ -28,10 +26,19 @@ class Policy(nn.Module):
         elif len(obs_shape) == 1:
             assert not recurrent_policy, \
                 "Recurrent policy is not implemented for the MLP controller"
-            if algo = 'ppo_shared':
+            if algo == 'ppo_shared':
                 self.base = MLPBaseShared(obs_shape[0], num_outputs)
             else:
                 self.base = MLPBase(obs_shape[0])
+        else:
+            raise NotImplementedError
+
+        if action_space.__class__.__name__ == "Discrete":
+            num_outputs = action_space.n
+            self.dist = Categorical(self.base.output_size, num_outputs)
+        elif action_space.__class__.__name__ == "Box":
+            num_outputs = action_space.shape[0]
+            self.dist = DiagGaussian(self.base.output_size, num_outputs)
         else:
             raise NotImplementedError
 
