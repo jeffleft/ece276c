@@ -206,8 +206,8 @@ class CNNBaseShared(nn.Module):
 
     def forward(self, inputs, states, masks):
         x = self.main(inputs / 255.0)
-        pdb.set_trace()
-        return x[0], x[1:], states
+
+        return x[:,0].view(-1,1), x[:,1:], states
 
 
 class MLPBase(nn.Module):
@@ -280,12 +280,11 @@ class MLPBaseShared(nn.Module):
 
     def forward(self, inputs, states, masks):
         outputs = self.shared(inputs)
-        pdb.set_trace()
 #        value = outputs[:,0] # first dimension is batch
 #        mu = outputs[:,1:]
 #        std = self.log_std.exp().expand_as(mu)
 #        dist = Normal(mu, std)
-        value  = outputs[:,0]
+        value  = outputs[:,0].view(-1,1)
         q_vals = outputs[:,1:]
 
         return value, q_vals, states
