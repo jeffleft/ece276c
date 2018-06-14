@@ -1,6 +1,7 @@
 # For ECE276C final project
 Code largely based off https://github.com/ikostrikov/pytorch-a2c-ppo-acktr
-Shared function approximators implemented, run with --algo ppo_shared or acktr_shared
+
+Shared function approximators implemented, run with --algo ppo_shared or acktr_shared. 
 Fully separated CNN Model implemented for comparison, run with --algo ppo_unshared or acktr_unshared
 
 README from original repo below:
