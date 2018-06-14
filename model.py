@@ -26,7 +26,7 @@ class Policy(nn.Module):
         elif len(obs_shape) == 1:
             assert not recurrent_policy, \
                 "Recurrent policy is not implemented for the MLP controller"
-            if algo == 'ppo_shared':
+            if algo == 'ppo_shared' or algo == 'acktr_shared':
                 self.base = MLPBaseShared(obs_shape[0], num_outputs)
             else:
                 self.base = MLPBase(obs_shape[0])
