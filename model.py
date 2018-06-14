@@ -1,9 +1,11 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from distributions import Categorical, DiagGaussian
+from distributions import Categorical, DiagGaussian, CategoricalNoFC, DiagGaussianNoFC
 from utils import init, init_normc_
 import numpy as np
+# from torch.distributions import Normal
+import pdb
 
 
 class Flatten(nn.Module):
@@ -16,6 +18,7 @@ class Policy(nn.Module):
         super(Policy, self).__init__()
 
         if algo == 'ppo_shared' or algo == 'acktr_shared':
+            # TODO: add "unshared" CNNModule
             self.shared = True
         else:
             self.shared = False
@@ -45,7 +48,13 @@ class Policy(nn.Module):
             raise NotImplementedError
 
         if self.shared:
-            self.dist = None # we don't need to sample for the shared nn
+            if action_space.__class__.__name__ == "Discrete":
+                self.dist = CategoricalNoFC()
+            elif action_space.__class__.__name__ == "Box":
+                num_outputs = action_space.shape[0]
+                self.dist = DiagGaussianNoFC(num_outputs)
+            else:
+                raise NotImplementedError
         else:
             if action_space.__class__.__name__ == "Discrete":
                 num_outputs = action_space.n
@@ -62,28 +71,17 @@ class Policy(nn.Module):
         raise NotImplementedError
 
     def act(self, inputs, states, masks, deterministic=False):
-        #TODO: Change for shared model
-        #       run the unmodifed model with pdb and find dim. of action etc.
-        if self.shared:
-            value, q_vals, states = self.base(inputs, states, masks)
-            if deterministic:
-                action = np.argmax(q_vals)
-            else:
-                action = np.argmax(q_vals) # i don't fucking know, should there be a chance of randomness?
-            action_log_probs = np.log(np.log(q_vals))
-            dist_entropy = 0.05 #i don't fucking know?
+        #TODO: Change for shared model -- changed distributions instead
+        value, actor_features, states = self.base(inputs, states, masks)
+        dist = self.dist(actor_features)
 
+        if deterministic:
+            action = dist.mode()
         else:
-            value, actor_features, states = self.base(inputs, states, masks)
-            dist = self.dist(actor_features)
+            action = dist.sample()
 
-            if deterministic:
-                action = dist.mode()
-            else:
-                action = dist.sample()
-
-            action_log_probs = dist.log_probs(action)
-            dist_entropy = dist.entropy().mean()
+        action_log_probs = dist.log_probs(action)
+        dist_entropy = dist.entropy().mean()
 
         return value, action, action_log_probs, states
 
@@ -92,17 +90,12 @@ class Policy(nn.Module):
         return value
 
     def evaluate_actions(self, inputs, states, masks, action):
-        #TODO: Change for shared model
-        if self.shared:
-            value, q_vals, states = self.base(inputs, states, masks)
-            action_log_probs = np.log(q_vals)
-            dist_entropy = 0.05 # what the fuck is this anyway??
-        else:
-            value, actor_features, states = self.base(inputs, states, masks)
-            dist = self.dist(actor_features)
+        #TODO: Change for shared model -- changed distributions instead
+        value, actor_features, states = self.base(inputs, states, masks)
+        dist = self.dist(actor_features)
 
-            action_log_probs = dist.log_probs(action)
-            dist_entropy = dist.entropy().mean()
+        action_log_probs = dist.log_probs(action)
+        dist_entropy = dist.entropy().mean()
 
         return value, action_log_probs, dist_entropy, states
 
@@ -174,7 +167,7 @@ class CNNBase(nn.Module):
 
 class CNNBaseShared(nn.Module):
     def __init__(self, num_inputs, use_gru, num_actions):
-        super(CNNBase, self).__init__()
+        super(CNNBaseShared, self).__init__()
 
         init_ = lambda m: init(m,
                       nn.init.orthogonal_,
@@ -213,7 +206,7 @@ class CNNBaseShared(nn.Module):
 
     def forward(self, inputs, states, masks):
         x = self.main(inputs / 255.0)
-
+        pdb.set_trace()
         return x[0], x[1:], states
 
 
@@ -258,8 +251,8 @@ class MLPBase(nn.Module):
         return self.critic_linear(hidden_critic), hidden_actor, states
 
 class MLPBaseShared(nn.Module):
-    def __init__(self, num_inputs, num_actions):
-        super(MLPBase, self).__init__()
+    def __init__(self, num_inputs, num_actions, std=0):
+        super(MLPBaseShared, self).__init__()
 
         init_ = lambda m: init(m,
               init_normc_,
@@ -275,6 +268,8 @@ class MLPBaseShared(nn.Module):
 
         self.train()
 
+        self.log_std = nn.Parameter(torch.ones(1, num_actions) * std)
+
     @property
     def state_size(self):
         return 1
@@ -285,5 +280,12 @@ class MLPBaseShared(nn.Module):
 
     def forward(self, inputs, states, masks):
         outputs = self.shared(inputs)
+        pdb.set_trace()
+#        value = outputs[:,0] # first dimension is batch
+#        mu = outputs[:,1:]
+#        std = self.log_std.exp().expand_as(mu)
+#        dist = Normal(mu, std)
+        value  = outputs[:,0]
+        q_vals = outputs[:,1:]
 
-        return outputs[0], outputs[1:], states
+        return value, q_vals, states
