@@ -10,7 +10,7 @@ python main.py --env-name "PongNoFrameskip-v4" --algo ppo_unshared --num-process
 # HalfCheetah, PPO
 python main.py --env-name "HalfCheetah-v2" --algo ppo --use-gae --vis-interval 1  --log-interval 1 --num-stack 1 --num-steps 128 --num-processes 1 --lr 3e-4 --entropy-coef 0 --value-loss-coef 1 --ppo-epoch 10 --num-mini-batch 32 --gamma 0.99 --tau 0.95 --num-frames 2000000 --log-dir logs
 
-python main.py --env-name "HalfCheetah-v2" --algo ppo_shared --use-gae --vis-interval 1  --log-interval 1 --num-stack 1 --num-steps 128 --num-processes 1 --lr 3e-4 --entropy-coef 0 --value-loss-coef 1 --ppo-epoch 10 --num-mini-batch 32 --gamma 0.99 --tau 0.95 --num-frames 2000000 --log-dir logs2
+python main.py --env-name "HalfCheetah-v2" --algo ppo_shared --use-gae --vis-interval 1  --log-interval 1 --num-stack 1 --num-steps 20 --num-processes 16 --lr 2e-4 --entropy-coef 0 --value-loss-coef 1 --ppo-epoch 10 --num-mini-batch 32 --gamma 0.99 --tau 0.95 --num-frames 2000000 --log-dir results/HalfCheetah_ppo_shared_2
 
 # Cartpole
 python main.py --env-name "CartPole-v0" --algo ppo --use-gae --vis-interval 1  --log-interval 1 --num-stack 1 --num-steps 200 --num-processes 4 --lr 3e-4 --entropy-coef 0 --value-loss-coef 1 --ppo-epoch 10 --num-mini-batch 32 --gamma 0.99 --tau 0.95 --num-frames 100000 --log-dir cartpole_ppo
