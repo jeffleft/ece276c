@@ -30,6 +30,7 @@ from torch.distributions import Normal
 from IPython.display import clear_output
 import matplotlib.pyplot as plt
 get_ipython().run_line_magic('matplotlib', 'inline')
+saveGraphPath = ('../run_batch/graphs')
 
 
 # In[4]:
@@ -85,10 +86,14 @@ class ActorCritic(nn.Module):
 
 class Ppo:
     
-    def __init__(self):
+    def __init__(self, numOfEnvs):
+        
         self.testRewards = []
         
-        self.num_envs = 16
+#         self.num_envs = 16
+#         self.num_envs = numOfEnvs
+        self.num_envs = 6
+        
         self.env_name = "Pendulum-v0"
         self.env = gym.make(self.env_name)
         
@@ -113,7 +118,12 @@ class Ppo:
 
         return _thunk        
 
-    def compute_gae(self, next_value, rewards, masks, values, gamma=0.99, tau=0.95):
+#     def compute_gae(self, next_value, rewards, masks, values, gamma=0.99, tau=0.95):
+    def compute_gae(self, next_value, rewards, masks, values, g, t):
+        
+        gamma = float(g)
+        tau = float(t)
+
         values = values + [next_value]
         gae = 0
         returns = []
@@ -157,6 +167,7 @@ class Ppo:
         plt.title('frame %s. reward: %s' % (frame_idx, rewards[-1]))
         plt.plot(rewards)
         plt.show()
+#         plt.savefig("{0}/{1}_rewardGraph.png".format(saveGraphPath, frame_idx))
         
     def test_env(self, vis=False):
         state = self.env.reset()
@@ -172,7 +183,13 @@ class Ppo:
             total_reward += reward
         return total_reward
                 
-    def main(self):
+    def main(self, inputVals):
+        gam = inputVals[0]
+        lam = inputVals[1]
+        
+        print ("Gam: ", gam)
+        print ("Lam: ", lam)
+        
         num_inputs  = self.envs.observation_space.shape[0]
         num_outputs = self.envs.action_space.shape[0]
 
@@ -187,8 +204,8 @@ class Ppo:
 #         model = a.ActorCritic(num_inputs, num_outputs, hidden_size).to(device)
 #         optimizer = optim.Adam(self.model.parameters(), lr=lr)
         
-#         max_frames = 15000
-        max_frames = 2000
+        max_frames = 12000
+#         max_frames = 2000
         frame_idx  = 0
         self.test_rewards = []
         
@@ -236,7 +253,7 @@ class Ppo:
 
             next_state = torch.FloatTensor(next_state).to(device)
             _, next_value = self.model(next_state)
-            returns = self.compute_gae(next_value, rewards, masks, values)
+            returns = self.compute_gae(next_value, rewards, masks, values, gam, lam)
 
             returns   = torch.cat(returns).detach()
             log_probs = torch.cat(log_probs).detach()
@@ -248,8 +265,10 @@ class Ppo:
             lastLoss = self.ppo_update(ppo_epochs, mini_batch_size, states, actions, log_probs, returns, advantage)
 #             print ("loss: ", [lastLoss])
             
+#         re = rewards[-1].cpu()
+#         print ("RE: ", np.asarray(re))
+#         return (np.asarray(re))
         return lastLoss.item()
-
 
 # In[24]:
 
@@ -260,35 +279,39 @@ class Ppo:
 # p.main()
 
 
-# In[25]:
-
-
-class functions:
-    def plot(self):
-        print ("not implemented")
+# In[25]
 
 class PpoImport:
     def __init__(self, bounds = None, sd = None):
         self.input_dim = 2
-        
         
         if bounds == None:
             self.bounds= OrderedDict([('lambda', (0,1)), ('gamma',(0,1))])
         else:
             self.bounds = bounds
             
-        
         self.fmin = 1 #not sure what this is
         self.min = [(0.)*self.input_dim]  #not sure what this is either
         self.ismax = 1 #not sure what this is
-        self.name='ppoGAE_import'
+        self.name='ppoGAE_import8'
         
     def func(self, X):
         X = np.asarray(X)
         
-        p = Ppo()
-        ll = p.main()
-        print ("ll: ", ll)
+        print ("X:", X)
+        
+        p = Ppo(3)
+#       #For each X value, run the model with those gamma and lambda values
+        #return the p values
+
+        func_re = [p.main(x) for x in X]
+        print ("func_re: ", func_re)
+
+        return func_re
+    
+        #give X to main
+#         ll = p.main()
+#         print ("ll: ", ll)
     #returns the rewardFunction*self.ismax
 
 
