@@ -1,9 +1,9 @@
 # Pong
 python main.py --env-name "PongNoFrameskip-v4" --algo ppo_shared --num-processes 32 --num-steps 20 --log-dir logs
 
-python main.py --env-name "PongNoFrameskip-v4" --algo acktr_shared --num-processes 32 --num-steps 20 --log-dir results/pong_acktr_shared
+python main.py --env-name "PongNoFrameskip-v4" --algo acktr_shared --num-processes 32 --num-steps 20 --log-dir logs2
 
-python main.py --env-name "PongNoFrameskip-v4" --algo acktr_unshared --num-processes 32 --num-steps 20 --log-dir results/pong_acktr_unshared
+python main.py --env-name "PongNoFrameskip-v4" --algo acktr_unshared --num-processes 32 --num-steps 20 --log-dir logs3
 
 python main.py --env-name "PongNoFrameskip-v4" --algo ppo_unshared --num-processes 32 --num-steps 20 --log-dir logs4
 
@@ -16,8 +16,3 @@ python main.py --env-name "HalfCheetah-v2" --algo ppo_shared --use-gae --vis-int
 python main.py --env-name "CartPole-v0" --algo ppo --use-gae --vis-interval 1  --log-interval 1 --num-stack 1 --num-steps 200 --num-processes 4 --lr 3e-4 --entropy-coef 0 --value-loss-coef 1 --ppo-epoch 10 --num-mini-batch 32 --gamma 0.99 --tau 0.95 --num-frames 100000 --log-dir cartpole_ppo
 
 python main.py --env-name "CartPole-v0" --algo ppo_shared --use-gae --vis-interval 1  --log-interval 1 --num-stack 1 --num-steps 200 --num-processes 4 --lr 3e-4 --entropy-coef 0 --value-loss-coef 1 --ppo-epoch 10 --num-mini-batch 32 --gamma 0.99 --tau 0.95 --num-frames 100000 --log-dir cartpole_ppo_shared
-
-# Pendulum
-python main.py --env-name "Pendulum-v0" --algo ppo --use-gae --vis-interval 1  --log-interval 1 --num-stack 1 --num-steps 200 --num-processes 4 --lr 3e-4 --entropy-coef 0 --value-loss-coef 1 --ppo-epoch 10 --num-mini-batch 32 --gamma 0.99 --tau 0.95 --num-frames 100000 --log-dir results/pendulum_ppo
-
-python main.py --env-name "Pendulum-v0" --algo ppo_shared --use-gae --vis-interval 1  --log-interval 1 --num-stack 1 --num-steps 200 --num-processes 4 --lr 3e-4 --entropy-coef 0 --value-loss-coef 1 --ppo-epoch 10 --num-mini-batch 32 --gamma 0.99 --tau 0.95 --num-frames 100000 --log-dir pendulum_ppo_shared
